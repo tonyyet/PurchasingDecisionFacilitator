@@ -1,0 +1,16 @@
+fastapi==0.115.14
+uvicorn==0.34.3
+pydantic-ai-slim==1.89.1
+pydantic==2.13.3
+requests==2.32.3
+python-multipart==0.0.22
+pillow==11.3.0
+pillow-heif==1.5.0
+httpx==0.28.1
+
+# Optional: headless-browser fallback for anti-bot CN e-commerce pages
+# (requires `playwright install chromium` after pip install)
+playwright==1.57.0
+
+# Optional: local OCR fallback for screenshot analysis
+# rapidocr_onnxruntime==1.4.4

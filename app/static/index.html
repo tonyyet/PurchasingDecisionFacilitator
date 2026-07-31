@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Purchasing Decision Facilitator</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1e26; --border:#2a3040; --accent:#4f8cff; --ok:#34c759; --warn:#ff9f0a; --text:#e8ecf4; --muted:#8a93a5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh; }
+  .wrap { max-width:640px; margin:0 auto; padding:16px 16px 60px; }
+  header { padding:18px 0 14px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+  h1 { font-size:22px; font-weight:700; letter-spacing:.5px; }
+  .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 6px; font-weight:600; }
+  input, textarea { width:100%; background:#12161e; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; outline:none; }
+  input:focus, textarea:focus { border-color:var(--accent); }
+  textarea { resize:vertical; min-height:72px; }
+  .btn { width:100%; background:var(--accent); border:none; border-radius:12px; color:#fff; font-size:17px; font-weight:700; padding:15px; margin-top:14px; cursor:pointer; }
+  .btn:disabled { opacity:.5; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+  #status { display:none; text-align:center; padding:20px 0; color:var(--muted); font-size:14px; }
+  .spinner { display:inline-block; width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .level { border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:12px; padding:14px; margin-bottom:14px; background:var(--card); }
+  .level h2 { font-size:17px; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .badge { font-size:11px; background:var(--border); padding:3px 8px; border-radius:20px; color:var(--muted); }
+  .l1 { border-left-color:#4f8cff; } .l2 { border-left-color:var(--warn); } .l3 { border-left-color:var(--ok); }
+  table { width:100%; border-collapse:collapse; margin:8px 0; font-size:13px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .sec-title { color:var(--accent); font-size:13px; font-weight:700; margin:10px 0 4px; }
+  .conf-h { color:var(--ok); } .conf-m { color:var(--warn); } .conf-l { color:#ff453a; }
+  .msg { background:#2a1f0e; border:1px solid #5a4310; color:#ffd60a; border-radius:10px; padding:12px; font-size:14px; margin-bottom:14px; }
+  .alt { border:1px dashed var(--border); border-radius:10px; padding:12px; margin:8px 0; }
+  .alt h4 { font-size:14px; margin-bottom:6px; }
+  .tag { display:inline-block; font-size:11px; border-radius:6px; padding:2px 6px; margin-right:6px; }
+  .tag.ok { background:#0d2e1c; color:var(--ok); } .tag.no { background:#3a1414; color:#ff453a; }
+  .footer { color:var(--muted); font-size:11px; text-align:center; margin-top:20px; }
+  details { margin-top:8px; }
+  summary { color:var(--muted); font-size:13px; cursor:pointer; padding:6px 0; }
+  code { background:#12161e; padding:2px 6px; border-radius:6px; font-size:12px; word-break:break-all; }
+  .kv { font-size:13px; margin:4px 0; }
+  .kv b { color:var(--muted); font-weight:600; }
+  .shot-card { border:2px dashed var(--accent); background:rgba(79,140,255,.06); }
+  .shot-label { display:flex; align-items:center; justify-content:center; gap:10px; padding:22px 12px; border-radius:10px; border:1px solid var(--border); cursor:pointer; color:var(--accent); font-size:16px; font-weight:700; }
+  .shot-label:active { background:#16213a; }
+  #shotFile { display:none; }
+  #shotPreview { width:100%; max-height:340px; object-fit:contain; border-radius:10px; margin-top:10px; border:1px solid var(--border); display:none; background:#000; }
+  .row2 { display:flex; gap:10px; }
+  .row2 .btn { flex:1; }
+  .btn.ghost { background:#2a3040; }
+  .detail-opt { display:flex; gap:16px; margin-top:4px; }
+  .detail-opt label { display:flex; align-items:center; gap:6px; margin:0; color:var(--text); font-weight:500; font-size:14px; }
+  .detail-opt input[type="radio"] { width:auto; accent-color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔍 Purchasing Decision Facilitator</h1>
+    <div class="sub">第一性原理 · 意图匹配 · 替代方案 — 三层次穿透营销迷雾</div>
+  </header>
+
+  <div class="card shot-card">
+    <label style="font-size:16px">📸 上传商品页截图（推荐：淘宝/京东/美团等）</label>
+    <div class="hint">在 App 里打开商品页 → 截图 → 上传即可，自动识别商品名/价格/卖点，不受反爬影响</div>
+    <label class="shot-label" for="shotFile">＋ 选择截图（手机可拍照）</label>
+    <input id="shotFile" type="file" accept="image/*">
+    <img id="shotPreview" alt="预览">
+    <div class="row2">
+      <button class="btn ghost" id="shotClear" style="display:none">清除</button>
+      <button class="btn" id="shotGo" style="display:none">分析截图</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>商品链接（可选）</label>
+    <input id="link" type="url" placeholder="https://www.amazon.com/... 或 https://item.taobao.com/...">
+    <label>产品名称 / 宣传卖点</label>
+    <textarea id="claims" placeholder="例如：XX品牌 WiFi 7 路由器，速度高达 3600Mbps"></textarea>
+    <label>价格</label>
+    <input id="price" placeholder="例如：¥599">
+    <label>你的真实需求 / 痛点</label>
+    <textarea id="need" placeholder="例如：家里 100 平米，多设备同时用网，想选一款信号稳的路由器"></textarea>
+    <label>预算范围</label>
+    <input id="budget" placeholder="例如：500 元以内">
+    <label>解释详细程度</label>
+    <div class="detail-opt">
+      <label class="opt"><input type="radio" name="detail" value="concise" checked> ⚡ 简洁（默认）</label>
+      <label class="opt"><input type="radio" name="detail" value="lengthy"> 📖 详细</label>
+    </div>
+    <button class="btn" id="go">开始分析</button>
+    <div class="hint">分析包含 3 个层次，约需 1-2 分钟。若未填写需求，先返回 Level 1 结果。</div>
+  </div>
+
+  <div id="status"><div class="spinner"></div><p>正在分析中，请稍候…</p></div>
+  <div id="result"></div>
+
+  <div class="footer">Purchasing Decision Facilitator · Open Source · DeepSeek + Pydantic AI</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function showErr(msg){
+  $('status').style.display = 'none';
+  $('result').innerHTML = `<div class="msg">⚠️ ${esc(msg)}<br><small style="opacity:.6">(若再次出现请截图，或点底部版本号 5 次查看诊断)</small></div>`;
+}
+let _errlog = [];
+function diag(){ console.log('ERROR LOG', _errlog); return _errlog.join('\n'); }
+window.addEventListener('error', e => { _errlog.push(`[onerror] ${e.message} @${e.filename||''}:${e.lineno}`); });
+window.addEventListener('unhandledrejection', e => { _errlog.push(`[rejection] ${e.reason && (e.reason.message || e.reason) || e.reason}`); });
+// 底部版本号连点 5 次显示诊断
+(function(){ let c=0; const ft=document.querySelector('.footer'); if(ft) ft.addEventListener('click', ()=>{ if(++c>=5){ c=0; alert(_errlog.join('\n')||'暂无错误记录'); } }); })();
+
+// ---- 异步任务轮询（公网隧道单请求约100s超时，分析全程120s+，必须轮询）----
+function pollTask(taskId, done, fail){
+  let n = 0;
+  const t = setInterval(async () => {
+    n++;
+    if (n > 120) { clearInterval(t); fail('等待超时（10分钟），请重试'); return; }
+    try {
+      const r = await fetch('/task/' + taskId);
+      const d = await r.json();
+      if (d.status === 'done') { clearInterval(t); done(d.result); }
+      else if (d.status === 'error') { clearInterval(t); fail(d.error || '分析失败'); }
+      else { const secs = n*3; $('status').textContent = `⏳ 分析中… 已等待 ${secs}s（约需1-2分钟，请勿关闭页面）`; }
+    } catch(e) {
+      _errlog.push(`[poll] ${e.name}: ${e.message}`);
+      if (n % 5 === 0) $('status').textContent = `⏳ 轮询网络抖动，自动重试…（${n*3}s）`;
+    }
+  }, 3000);
+}
+function startTask(promise, btn){
+  btn.disabled = true; $('status').style.display = 'block'; $('status').textContent = '⏳ 提交中…'; $('result').innerHTML = '';
+  promise.then(async r => {
+    let data = null; try { data = await r.json(); } catch(_) {}
+    if (!r.ok) { _errlog.push(`[http ${r.status}] ${(data&&data.detail)||'非JSON响应'}`); $('status').style.display='none'; showErr((data && (typeof data.detail==='string'?data.detail:JSON.stringify(data.detail))) || ('服务错误 HTTP '+r.status)); return; }
+    if (!data || !data.task_id) { $('status').style.display='none'; showErr('服务器未返回任务ID'); return; }
+    pollTask(data.task_id, res => { $('status').style.display='none'; render(res); btn.disabled = false; },
+             err => { $('status').style.display='none'; showErr(err); btn.disabled = false; });
+  }).catch(e => {
+    _errlog.push(`[fetch] ${e.name}: ${e.message}`);
+    $('status').style.display='none';
+    showErr(`网络错误: ${e.message}（${e.name} · 请截图反馈）`);
+    btn.disabled = false;
+  });
+}
+
+// ---- 截图上传 ----
+let _shotFile = null;
+$('shotFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  _shotFile = f;
+  const url = URL.createObjectURL(f);
+  $('shotPreview').src = url;
+  $('shotPreview').style.display = 'block';
+  $('shotGo').style.display = 'block';
+  $('shotClear').style.display = 'block';
+  // iPhone: 选图后自动开始分析（避免漏点"分析截图"按钮）
+  setTimeout(() => { if (_shotFile) $('shotGo').click(); }, 400);
+});
+$('shotClear').addEventListener('click', () => {
+  _shotFile = null; $('shotFile').value = '';
+  $('shotPreview').style.display = 'none'; $('shotGo').style.display = 'none'; $('shotClear').style.display = 'none';
+});
+$('shotGo').addEventListener('click', () => {
+  if (!_shotFile) { alert('请先选择截图'); return; }
+  $('shotGo').disabled = true;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // 压缩到最长边 1280 / JPEG q0.8，控制 body < 1MB（隧道对 MB 级 multipart 不可靠）
+      const max = 1280;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * scale);
+      cv.height = Math.round(img.height * scale);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const b64 = cv.toDataURL('image/jpeg', 0.8).split(',')[1];
+      startTask(fetch('/analyze_image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_b64: b64, detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise' }) }), $('shotGo'));
+    };
+    img.onerror = () => { showErr('图片解析失败，请换一张截图'); $('shotGo').disabled = false; };
+    img.src = e.target.result;
+  };
+  reader.onerror = () => { showErr('读取图片失败'); $('shotGo').disabled = false; };
+  reader.readAsDataURL(_shotFile);
+});
+
+$('go').addEventListener('click', () => {
+  const body = {
+    product: {
+      link: $('link').value.trim(),
+      claims: $('claims').value.trim(),
+      price: $('price').value.trim(),
+      name: $('claims').value.trim().split(/[,，]/)[0] || ''
+    },
+    user: {
+      real_need: $('need').value.trim(),
+      budget: $('budget').value.trim(),
+      scenario: ''
+    },
+    detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise'
+  };
+  if (!body.product.link && !body.product.claims) { alert('请填写商品链接或产品描述'); return; }
+  startTask(fetch('/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }), $('go'));
+});
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function conf(c){ const m={ '高':'conf-h','中':'conf-m','低':'conf-l' }; return `<span class="${m[c]||''}">[${esc(c)}]</span>`; }
+
+function render(d){
+  let h='';
+  if (d.status === 'need_user_input'){
+    h += `<div class="msg">📋 ${esc(d.message)}</div>`;
+  }
+  if (d.level1) h += renderL1(d.level1);
+  if (d.level2) h += renderL2(d.level2);
+  if (d.level3) h += renderL3(d.level3);
+  $('result').innerHTML = h;
+}
+
+function srcLink(s){ return s ? ` <a class="src" href="${esc(s)}" target="_blank" rel="noopener">🔗来源</a>` : ''; }
+function renderL1(l){
+  let rows = (l.claims||[]).map(c=>`<tr><td>${esc(c.claim)}</td><td>${esc(c.verdict)}${srcLink(c.source)}</td><td>${conf(c.confidence)}</td></tr>`).join('');
+  return `<div class="level l1">
+    <h2>🔬 Level 1 第一性原理分析 <span class="badge">物理/经济/逻辑</span></h2>
+    <div class="sec-title">📊 可验证宣称清单</div>
+    <table><tr><th>宣称</th><th>验证结论</th><th>置信度</th></tr>${rows||'<tr><td colspan=3>—</td></tr>'}</table>
+    <div class="sec-title">⚙️ 物理/工程</div><p class="kv">${esc(l.physics)}</p>
+    <div class="sec-title">💰 经济/商业</div><p class="kv">${esc(l.economics)}</p>
+    <div class="sec-title">🧠 逻辑/证据</div><p class="kv">${esc(l.logic)}</p>
+    <div class="sec-title">🏁 综合判断</div>
+    <p class="kv">总体置信度: ${conf(l.overall_confidence)}</p>
+    <p class="kv">最可能夸大: ${esc(l.likely_exaggeration)}</p>
+    <p class="kv">实际效果估计: ${esc(l.realistic_range)}</p>
+  </div>`;
+}
+
+function renderL2(l){
+  return `<div class="level l2">
+    <h2>🎯 Level 2 意图匹配分析 <span class="badge">匹配度 ${l.match_score||'-'}/10</span></h2>
+    <p class="kv"><b>针对谁设计:</b> ${esc(l.seller_target)}</p>
+    <p class="kv"><b>心理技巧:</b> ${(l.tactics||[]).map(esc).join(' · ') || '—'}</p>
+    <p class="kv"><b>有意忽略:</b> ${(l.hidden_info||[]).map(esc).join(' · ') || '—'}</p>
+    <div class="sec-title">🙋 你的真实需求</div>
+    <p class="kv"><b>表层:</b> ${esc(l.surface_need)}</p>
+    <p class="kv"><b>深层:</b> ${esc(l.deep_need)}</p>
+    <div class="sec-title">🤝 匹配项</div>
+    ${(l.matches||[]).map(m=>`<div class="kv"><span class="tag ok">✅ 匹配</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
+    <div class="sec-title">❌ 不匹配项</div>
+    ${(l.mismatches||[]).map(m=>`<div class="kv"><span class="tag no">❌ 不匹配</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
+  </div>`;
+}
+
+function renderL3(l){
+  const alts = (l.alternatives||[]).map(a=>`
+    <div class="alt">
+      <h4>🔄 ${esc(a.name)} <span class="badge">匹配 ${a.match||'-'}/10</span></h4>
+      <p class="kv"><b>价格:</b> ${esc(a.price)} ${srcLink(a.source)}</p>
+      <p class="kv"><b>✅ 优势:</b> ${(a.pros||[]).map(esc).join('; ')}</p>
+      <p class="kv"><b>❌ 劣势:</b> ${(a.cons||[]).map(esc).join('; ')}</p>
+    </div>`).join('');
+  return `<div class="level l3">
+    <h2>💡 Level 3 替代方案推荐 <span class="badge">含零方案</span></h2>
+    <p class="kv"><b>关键需求维度:</b> ${(l.key_needs||[]).map(n=>`${esc(n.name)}(${esc(n.weight)})`).join(' · ')}</p>
+    ${alts}
+    <div class="sec-title">方案 0 · 零方案</div><p class="kv">${esc(l.zero_plan)}</p>
+    <div class="sec-title">🏆 综合建议</div><p class="kv">${esc(l.final_recommendation)}</p>
+  </div>`;
+}
+</script>
+</body>
+</html>

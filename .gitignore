@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Env / secrets
+.env
+.env.local
+
+# Logs
+*.log
+
+# Runtime artifacts
+smoke_result.json
+plan.md
+
+# Local tooling (not part of the repo)
+cloudflared.exe
+
+# Test fixtures (generated locally)
+test_assets/
