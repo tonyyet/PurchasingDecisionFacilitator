@@ -32,7 +32,9 @@ app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 async def unhandled_exc_handler(request: Request, exc: Exception):
     detail = f"{type(exc).__name__}: {str(exc)[:300]}"
     print(f"[500] {request.method} {request.url.path} -> {detail}", flush=True)
-    return JSONResponse(status_code=500, content={"detail": f"服务内部错误: {detail}"})
+    lang = request.query_params.get("lang", "zh")
+    msg = f"服务内部错误: {detail}" if lang != "en" else f"Internal server error: {detail}"
+    return JSONResponse(status_code=500, content={"detail": msg})
 
 import tempfile
 
@@ -46,14 +48,17 @@ def _need_input(msg: str) -> PipelineResult:
 _TASKS: dict[str, dict] = {}
 
 
-async def _task_run(task_id: str, fn, *args):
+async def _task_run(task_id: str, fn, *args, lang: str = "zh"):
     """后台执行 fn，更新任务状态。"""
     _TASKS[task_id] = {"status": "running"}
     try:
         result = await asyncio.wait_for(fn(*args), timeout=360)
         _TASKS[task_id] = {"status": "done", "result": result}
     except asyncio.TimeoutError:
-        _TASKS[task_id] = {"status": "error", "error": "分析超时，请稍后重试"}
+        _TASKS[task_id] = {
+            "status": "error",
+            "error": "分析超时，请稍后重试" if lang == "zh" else "Analysis timed out, please try again later",
+        }
     except Exception as e:
         _TASKS[task_id] = {"status": "error", "error": f"{type(e).__name__}: {str(e)[:200]}"}
         print(f"[task {task_id}] FAIL: {_TASKS[task_id]['error']}", flush=True)
@@ -64,6 +69,12 @@ async def _task_full(req: AnalysisRequest) -> PipelineResult:
     if req.product.link and not req.product.page_text:
         f = await asyncio.to_thread(fetch_page, req.product.link)
         if f.get("blocked"):
+            if req.language == "en":
+                return _need_input(
+                    f"Link fetching blocked: {f.get('hint','')}. Platforms like Taobao/JD use anti-bot "
+                    "and login walls — upload a product-page screenshot instead for a smoother experience "
+                    "(screenshots bypass anti-bot restrictions)."
+                )
             return _need_input(
                 f"链接抓取被拦截：{f.get('hint','')}。淘宝/京东等平台有反爬与登录墙，"
                 "推荐直接「上传商品页截图」体验更稳（截图路径不受反爬影响）。"
@@ -73,16 +84,21 @@ async def _task_full(req: AnalysisRequest) -> PipelineResult:
     return await run_pipeline(req)
 
 
-async def _task_image(img_path: str, detail: str = "concise") -> PipelineResult:
+async def _task_image(img_path: str, detail: str = "concise", language: str = "zh") -> PipelineResult:
     """截图 → 视觉/OCR 抽取 → 3-Level 报告。"""
     ex = await asyncio.to_thread(extract_from_image, img_path)
     if not ex.get("ok"):
+        if language == "en":
+            return _need_input(
+                f"Image recognition failed: {ex.get('hint','')} (please upload a clear, complete screenshot of the product page)"
+            )
         return _need_input(f"图片识别失败：{ex.get('hint','')}（请上传清晰完整的商品页截图）")
     req = AnalysisRequest(
         product={"name": ex.get("name", ""), "claims": ex.get("claims", ""),
                  "price": ex.get("price", ""), "page_text": ex.get("page_text", "")},
         user={"real_need": "", "budget": "", "scenario": ""},
         detail=detail if detail in ("concise", "lengthy") else "concise",
+        language=language if language in ("zh", "en") else "zh",
     )
     return await run_pipeline(req)
 
@@ -97,7 +113,7 @@ async def analyze(req: AnalysisRequest):
     """异步全流程分析：立即返回 task_id，前端轮询 /task/{id}。"""
     task_id = uuid.uuid4().hex
     _TASKS[task_id] = {"status": "pending"}
-    asyncio.create_task(_task_run(task_id, _task_full, req))
+    asyncio.create_task(_task_run(task_id, _task_full, req, lang=req.language))
     return {"task_id": task_id}
 
 
@@ -105,6 +121,7 @@ class ImageUpload(BaseModel):
     """前端 canvas 压缩后以 base64 上传（绕开 cloudflared 隧道对大 multipart 不可靠的问题）。"""
     image_b64: str
     detail: str = "concise"
+    language: str = "zh"
 
 
 @app.post("/analyze_image")
@@ -121,13 +138,13 @@ async def analyze_image(upload: ImageUpload):
     tmp.close()
     task_id = uuid.uuid4().hex
     _TASKS[task_id] = {"status": "pending"}
-    asyncio.create_task(_task_image_cleanup(task_id, tmp.name, upload.detail))
+    asyncio.create_task(_task_image_cleanup(task_id, tmp.name, upload.detail, upload.language))
     return {"task_id": task_id}
 
 
-async def _task_image_cleanup(task_id: str, img_path: str, detail: str = "concise"):
+async def _task_image_cleanup(task_id: str, img_path: str, detail: str = "concise", language: str = "zh"):
     try:
-        await _task_run(task_id, _task_image, img_path, detail)
+        await _task_run(task_id, _task_image, img_path, detail, language, lang=language)
     finally:
         try:
             os.unlink(img_path)

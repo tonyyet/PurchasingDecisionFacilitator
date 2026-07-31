@@ -9,9 +9,13 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh; }
   .wrap { max-width:640px; margin:0 auto; padding:16px 16px 60px; }
-  header { padding:18px 0 14px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+  header { padding:18px 0 14px; border-bottom:1px solid var(--border); margin-bottom:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .head-left { flex:1; }
   h1 { font-size:22px; font-weight:700; letter-spacing:.5px; }
   .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+  .lang-switch { display:flex; gap:6px; flex-shrink:0; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:3px; }
+  .lang-switch button { border:none; background:transparent; color:var(--muted); font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; cursor:pointer; }
+  .lang-switch button.active { background:var(--accent); color:#fff; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
   label { display:block; font-size:13px; color:var(--muted); margin:10px 0 6px; font-weight:600; }
   input, textarea { width:100%; background:#12161e; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; outline:none; }
@@ -59,43 +63,49 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>🔍 Purchasing Decision Facilitator</h1>
-    <div class="sub">第一性原理 · 意图匹配 · 替代方案 — 三层次穿透营销迷雾</div>
+    <div class="head-left">
+      <h1>🔍 Purchasing Decision Facilitator</h1>
+      <div class="sub" data-i18n="headerSub">第一性原理 · 意图匹配 · 替代方案 — 三层次穿透营销迷雾</div>
+    </div>
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" data-lang="zh">中文</button>
+      <button type="button" data-lang="en">English</button>
+    </div>
   </header>
 
   <div class="card shot-card">
-    <label style="font-size:16px">📸 上传商品页截图（推荐：淘宝/京东/美团等）</label>
-    <div class="hint">在 App 里打开商品页 → 截图 → 上传即可，自动识别商品名/价格/卖点，不受反爬影响</div>
-    <label class="shot-label" for="shotFile">＋ 选择截图（手机可拍照）</label>
+    <label style="font-size:16px" data-i18n="shotTitle">📸 上传商品页截图（推荐：淘宝/京东/美团等）</label>
+    <div class="hint" data-i18n="shotHint">在 App 里打开商品页 → 截图 → 上传即可，自动识别商品名/价格/卖点，不受反爬影响</div>
+    <label class="shot-label" for="shotFile" data-i18n="shotLabel">＋ 选择截图（手机可拍照）</label>
     <input id="shotFile" type="file" accept="image/*">
-    <img id="shotPreview" alt="预览">
+    <img id="shotPreview" alt="preview">
     <div class="row2">
-      <button class="btn ghost" id="shotClear" style="display:none">清除</button>
-      <button class="btn" id="shotGo" style="display:none">分析截图</button>
+      <button class="btn ghost" id="shotClear" style="display:none" data-i18n="clear">清除</button>
+      <button class="btn" id="shotGo" style="display:none" data-i18n="analyzeShot">分析截图</button>
     </div>
   </div>
 
   <div class="card">
-    <label>商品链接（可选）</label>
-    <input id="link" type="url" placeholder="https://www.amazon.com/... 或 https://item.taobao.com/...">
-    <label>产品名称 / 宣传卖点</label>
-    <textarea id="claims" placeholder="例如：XX品牌 WiFi 7 路由器，速度高达 3600Mbps"></textarea>
-    <label>价格</label>
-    <input id="price" placeholder="例如：¥599">
-    <label>你的真实需求 / 痛点</label>
-    <textarea id="need" placeholder="例如：家里 100 平米，多设备同时用网，想选一款信号稳的路由器"></textarea>
-    <label>预算范围</label>
-    <input id="budget" placeholder="例如：500 元以内">
-    <label>解释详细程度</label>
+    <label data-i18n="fLink">商品链接（可选）</label>
+    <input id="link" type="url" data-i18n-ph="phLink" placeholder="https://www.amazon.com/... 或 https://item.taobao.com/...">
+    <label data-i18n="fClaims">产品名称 / 宣传卖点</label>
+    <textarea id="claims" data-i18n-ph="phClaims" placeholder="例如：XX品牌 WiFi 7 路由器，速度高达 3600Mbps"></textarea>
+    <label data-i18n="fPrice">价格</label>
+    <input id="price" data-i18n-ph="phPrice" placeholder="例如：¥599">
+    <label data-i18n="fNeed">你的真实需求 / 痛点</label>
+    <textarea id="need" data-i18n-ph="phNeed" placeholder="例如：家里 100 平米，多设备同时用网，想选一款信号稳的路由器"></textarea>
+    <label data-i18n="fBudget">预算范围</label>
+    <input id="budget" data-i18n-ph="phBudget" placeholder="例如：500 元以内">
+    <label data-i18n="fDetail">解释详细程度</label>
     <div class="detail-opt">
-      <label class="opt"><input type="radio" name="detail" value="concise" checked> ⚡ 简洁（默认）</label>
-      <label class="opt"><input type="radio" name="detail" value="lengthy"> 📖 详细</label>
+      <label class="opt"><input type="radio" name="detail" value="concise" checked> <span data-i18n="optConcise">⚡ 简洁（默认）</span></label>
+      <label class="opt"><input type="radio" name="detail" value="lengthy"> <span data-i18n="optLengthy">📖 详细</span></label>
     </div>
-    <button class="btn" id="go">开始分析</button>
-    <div class="hint">分析包含 3 个层次，约需 1-2 分钟。若未填写需求，先返回 Level 1 结果。</div>
+    <button class="btn" id="go" data-i18n="goBtn">开始分析</button>
+    <div class="hint" data-i18n="formHint">分析包含 3 个层次，约需 1-2 分钟。若未填写需求，先返回 Level 1 结果。</div>
   </div>
 
-  <div id="status"><div class="spinner"></div><p>正在分析中，请稍候…</p></div>
+  <div id="status"><div class="spinner"></div><p data-i18n="analyzing">正在分析中，请稍候…</p></div>
   <div id="result"></div>
 
   <div class="footer">Purchasing Decision Facilitator · Open Source · DeepSeek + Pydantic AI</div>
@@ -104,47 +114,155 @@
 <script>
 const $ = id => document.getElementById(id);
 
+// ---- i18n ----
+const I18N = {
+  zh: {
+    headerSub: '第一性原理 · 意图匹配 · 替代方案 — 三层次穿透营销迷雾',
+    shotTitle: '📸 上传商品页截图（推荐：淘宝/京东/美团等）',
+    shotHint: '在 App 里打开商品页 → 截图 → 上传即可，自动识别商品名/价格/卖点，不受反爬影响',
+    shotLabel: '＋ 选择截图（手机可拍照）',
+    clear: '清除', analyzeShot: '分析截图',
+    fLink: '商品链接（可选）', fClaims: '产品名称 / 宣传卖点', fPrice: '价格',
+    fNeed: '你的真实需求 / 痛点', fBudget: '预算范围', fDetail: '解释详细程度',
+    optConcise: '⚡ 简洁（默认）', optLengthy: '📖 详细', goBtn: '开始分析',
+    formHint: '分析包含 3 个层次，约需 1-2 分钟。若未填写需求，先返回 Level 1 结果。',
+    analyzing: '正在分析中，请稍候…',
+    phLink: 'https://www.amazon.com/... 或 https://item.taobao.com/...',
+    phClaims: '例如：XX品牌 WiFi 7 路由器，速度高达 3600Mbps',
+    phPrice: '例如：¥599',
+    phNeed: '例如：家里 100 平米，多设备同时用网，想选一款信号稳的路由器',
+    phBudget: '例如：500 元以内',
+    errSuffix: '(若再次出现请截图，或点底部版本号 5 次查看诊断)',
+    pollTimeout: '等待超时（10分钟），请重试',
+    pollWait: (s) => `⏳ 分析中… 已等待 ${s}s（约需1-2分钟，请勿关闭页面）`,
+    pollRetry: (s) => `⏳ 轮询网络抖动，自动重试…（${s}s）`,
+    submitting: '⏳ 提交中…',
+    httpErr: (s) => `服务错误 HTTP ${s}`,
+    noTaskId: '服务器未返回任务ID',
+    nonJson: '非JSON响应',
+    netErr: (n, m) => `网络错误: ${m}（${n} · 请截图反馈）`,
+    needShot: '请先选择截图',
+    imgParseErr: '图片解析失败，请换一张截图',
+    imgReadErr: '读取图片失败',
+    needInput: '请填写商品链接或产品描述',
+    l1Title: '🔬 Level 1 第一性原理分析', l1Badge: '物理/经济/逻辑',
+    claimsList: '📊 可验证宣称清单', thClaim: '宣称', thVerdict: '验证结论', thConf: '置信度',
+    sPhysics: '⚙️ 物理/工程', sEcon: '💰 经济/商业', sLogic: '🧠 逻辑/证据', sOverall: '🏁 综合判断',
+    overallConf: '总体置信度', likelyExag: '最可能夸大', realistic: '实际效果估计',
+    confHigh: '高', confMed: '中', confLow: '低',
+    l2Title: '🎯 Level 2 意图匹配分析', l2Badge: (m) => `匹配度 ${m}/10`,
+    forWhom: '针对谁设计', tactics: '心理技巧', hidden: '有意忽略',
+    yourNeed: '🙋 你的真实需求', surface: '表层', deep: '深层',
+    matches: '🤝 匹配项', mismatches: '❌ 不匹配项', tagMatch: '✅ 匹配', tagNo: '❌ 不匹配',
+    l3Title: '💡 Level 3 替代方案推荐', l3Badge: '含零方案',
+    matchScore: (m) => `匹配 ${m}/10`, price: '价格', pros: '✅ 优势', cons: '❌ 劣势',
+    keyNeeds: '关键需求维度', zeroPlan: '方案 0 · 零方案', finalRec: '🏆 综合建议',
+    srcLabel: '🔗来源'
+  },
+  en: {
+    headerSub: 'First Principles · Intent Matching · Alternatives — see through marketing hype in 3 levels',
+    shotTitle: '📸 Upload product-page screenshot (recommended for Taobao/JD/Meituan…)',
+    shotHint: 'Open the product page in the app → screenshot → upload. Name/price/claims are auto-extracted, bypassing anti-bot walls',
+    shotLabel: '＋ Choose screenshot (or take a photo)',
+    clear: 'Clear', analyzeShot: 'Analyze',
+    fLink: 'Product link (optional)', fClaims: 'Product name / marketing claims', fPrice: 'Price',
+    fNeed: 'Your real need / pain point', fBudget: 'Budget', fDetail: 'Explanation detail',
+    optConcise: '⚡ Concise (default)', optLengthy: '📖 Detailed', goBtn: 'Start Analysis',
+    formHint: 'The analysis runs 3 levels and takes ~1-2 min. If needs are left blank, Level 1 is returned first.',
+    analyzing: 'Analyzing, please wait…',
+    phLink: 'https://www.amazon.com/... or https://item.taobao.com/...',
+    phClaims: 'e.g. Brand X WiFi 7 router, up to 3600 Mbps',
+    phPrice: 'e.g. ¥599',
+    phNeed: 'e.g. 100 m² home, many devices online, need a router with stable signal',
+    phBudget: 'e.g. under ¥500',
+    errSuffix: '(If it recurs, screenshot it, or tap the footer 5 times for diagnostics)',
+    pollTimeout: 'Polling timed out (10 min), please retry',
+    pollWait: (s) => `⏳ Analyzing… waited ${s}s (~1-2 min, keep this page open)`,
+    pollRetry: (s) => `⏳ Network hiccup, retrying… (${s}s)`,
+    submitting: '⏳ Submitting…',
+    httpErr: (s) => `Server error HTTP ${s}`,
+    noTaskId: 'Server did not return a task ID',
+    nonJson: 'Non-JSON response',
+    netErr: (n, m) => `Network error: ${m} (${n} · screenshot for feedback)`,
+    needShot: 'Please choose a screenshot first',
+    imgParseErr: 'Failed to parse image, please try another screenshot',
+    imgReadErr: 'Failed to read image',
+    needInput: 'Please enter a product link or description',
+    l1Title: '🔬 Level 1 First-Principles Analysis', l1Badge: 'Physics/Econ/Logic',
+    claimsList: '📊 Verifiable Claims', thClaim: 'Claim', thVerdict: 'Verdict', thConf: 'Confidence',
+    sPhysics: '⚙️ Physics / Engineering', sEcon: '💰 Economics / Business', sLogic: '🧠 Logic / Evidence', sOverall: '🏁 Overall Verdict',
+    overallConf: 'Overall confidence', likelyExag: 'Most likely exaggeration', realistic: 'Realistic effect range',
+    confHigh: 'High', confMed: 'Med', confLow: 'Low',
+    l2Title: '🎯 Level 2 Intent Matching', l2Badge: (m) => `Match ${m}/10`,
+    forWhom: 'Designed for', tactics: 'Psychology tactics', hidden: 'What it hides',
+    yourNeed: '🙋 Your Real Need', surface: 'Surface', deep: 'Deep',
+    matches: '🤝 Matches', mismatches: '❌ Mismatches', tagMatch: '✅ Match', tagNo: '❌ No match',
+    l3Title: '💡 Level 3 Alternatives', l3Badge: 'incl. zero-option',
+    matchScore: (m) => `Match ${m}/10`, price: 'Price', pros: '✅ Pros', cons: '❌ Cons',
+    keyNeeds: 'Key need dimensions', zeroPlan: 'Option 0 · Do nothing', finalRec: '🏆 Final Recommendation',
+    srcLabel: '🔗Source'
+  }
+};
+
+let LANG = localStorage.getItem('pdf_lang');
+if (LANG !== 'zh' && LANG !== 'en') {
+  LANG = ((navigator.language || '') + '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+const t = key => (I18N[LANG] && I18N[LANG][key] !== undefined) ? I18N[LANG][key] : (I18N.zh[key] !== undefined ? I18N.zh[key] : key);
+const tf = (key, ...args) => { const v = t(key); return typeof v === 'function' ? v(...args) : v; };
+
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll('#langSwitch button').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+}
+document.querySelectorAll('#langSwitch button').forEach(b => {
+  b.addEventListener('click', () => { LANG = b.dataset.lang; localStorage.setItem('pdf_lang', LANG); applyLang(); });
+});
+applyLang();
+
 function showErr(msg){
   $('status').style.display = 'none';
-  $('result').innerHTML = `<div class="msg">⚠️ ${esc(msg)}<br><small style="opacity:.6">(若再次出现请截图，或点底部版本号 5 次查看诊断)</small></div>`;
+  $('result').innerHTML = `<div class="msg">⚠️ ${esc(msg)}<br><small style="opacity:.6">${tf('errSuffix')}</small></div>`;
 }
 let _errlog = [];
 function diag(){ console.log('ERROR LOG', _errlog); return _errlog.join('\n'); }
 window.addEventListener('error', e => { _errlog.push(`[onerror] ${e.message} @${e.filename||''}:${e.lineno}`); });
 window.addEventListener('unhandledrejection', e => { _errlog.push(`[rejection] ${e.reason && (e.reason.message || e.reason) || e.reason}`); });
 // 底部版本号连点 5 次显示诊断
-(function(){ let c=0; const ft=document.querySelector('.footer'); if(ft) ft.addEventListener('click', ()=>{ if(++c>=5){ c=0; alert(_errlog.join('\n')||'暂无错误记录'); } }); })();
+(function(){ let c=0; const ft=document.querySelector('.footer'); if(ft) ft.addEventListener('click', ()=>{ if(++c>=5){ c=0; alert(_errlog.join('\n')||'no errors logged'); } }); })();
 
 // ---- 异步任务轮询（公网隧道单请求约100s超时，分析全程120s+，必须轮询）----
 function pollTask(taskId, done, fail){
   let n = 0;
   const t = setInterval(async () => {
     n++;
-    if (n > 120) { clearInterval(t); fail('等待超时（10分钟），请重试'); return; }
+    if (n > 120) { clearInterval(t); fail(tf('pollTimeout')); return; }
     try {
       const r = await fetch('/task/' + taskId);
       const d = await r.json();
       if (d.status === 'done') { clearInterval(t); done(d.result); }
-      else if (d.status === 'error') { clearInterval(t); fail(d.error || '分析失败'); }
-      else { const secs = n*3; $('status').textContent = `⏳ 分析中… 已等待 ${secs}s（约需1-2分钟，请勿关闭页面）`; }
+      else if (d.status === 'error') { clearInterval(t); fail(d.error || tf('pollTimeout')); }
+      else { const secs = n*3; $('status').textContent = tf('pollWait', secs); }
     } catch(e) {
       _errlog.push(`[poll] ${e.name}: ${e.message}`);
-      if (n % 5 === 0) $('status').textContent = `⏳ 轮询网络抖动，自动重试…（${n*3}s）`;
+      if (n % 5 === 0) $('status').textContent = tf('pollRetry', n*3);
     }
   }, 3000);
 }
 function startTask(promise, btn){
-  btn.disabled = true; $('status').style.display = 'block'; $('status').textContent = '⏳ 提交中…'; $('result').innerHTML = '';
+  btn.disabled = true; $('status').style.display = 'block'; $('status').textContent = tf('submitting'); $('result').innerHTML = '';
   promise.then(async r => {
     let data = null; try { data = await r.json(); } catch(_) {}
-    if (!r.ok) { _errlog.push(`[http ${r.status}] ${(data&&data.detail)||'非JSON响应'}`); $('status').style.display='none'; showErr((data && (typeof data.detail==='string'?data.detail:JSON.stringify(data.detail))) || ('服务错误 HTTP '+r.status)); return; }
-    if (!data || !data.task_id) { $('status').style.display='none'; showErr('服务器未返回任务ID'); return; }
+    if (!r.ok) { _errlog.push(`[http ${r.status}] ${(data&&data.detail)||'non-json'}`); $('status').style.display='none'; showErr((data && (typeof data.detail==='string'?data.detail:JSON.stringify(data.detail))) || tf('httpErr', r.status)); return; }
+    if (!data || !data.task_id) { $('status').style.display='none'; showErr(tf('noTaskId')); return; }
     pollTask(data.task_id, res => { $('status').style.display='none'; render(res); btn.disabled = false; },
              err => { $('status').style.display='none'; showErr(err); btn.disabled = false; });
   }).catch(e => {
     _errlog.push(`[fetch] ${e.name}: ${e.message}`);
     $('status').style.display='none';
-    showErr(`网络错误: ${e.message}（${e.name} · 请截图反馈）`);
+    showErr(tf('netErr', e.name, e.message));
     btn.disabled = false;
   });
 }
@@ -168,7 +286,7 @@ $('shotClear').addEventListener('click', () => {
   $('shotPreview').style.display = 'none'; $('shotGo').style.display = 'none'; $('shotClear').style.display = 'none';
 });
 $('shotGo').addEventListener('click', () => {
-  if (!_shotFile) { alert('请先选择截图'); return; }
+  if (!_shotFile) { alert(tf('needShot')); return; }
   $('shotGo').disabled = true;
   const reader = new FileReader();
   reader.onload = e => {
@@ -183,12 +301,12 @@ $('shotGo').addEventListener('click', () => {
       cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
       const b64 = cv.toDataURL('image/jpeg', 0.8).split(',')[1];
       startTask(fetch('/analyze_image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_b64: b64, detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise' }) }), $('shotGo'));
+        body: JSON.stringify({ image_b64: b64, detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise', language: LANG }) }), $('shotGo'));
     };
-    img.onerror = () => { showErr('图片解析失败，请换一张截图'); $('shotGo').disabled = false; };
+    img.onerror = () => { showErr(tf('imgParseErr')); $('shotGo').disabled = false; };
     img.src = e.target.result;
   };
-  reader.onerror = () => { showErr('读取图片失败'); $('shotGo').disabled = false; };
+  reader.onerror = () => { showErr(tf('imgReadErr')); $('shotGo').disabled = false; };
   reader.readAsDataURL(_shotFile);
 });
 
@@ -205,14 +323,22 @@ $('go').addEventListener('click', () => {
       budget: $('budget').value.trim(),
       scenario: ''
     },
-    detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise'
+    detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise',
+    language: LANG
   };
-  if (!body.product.link && !body.product.claims) { alert('请填写商品链接或产品描述'); return; }
+  if (!body.product.link && !body.product.claims) { alert(tf('needInput')); return; }
   startTask(fetch('/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }), $('go'));
 });
 
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function conf(c){ const m={ '高':'conf-h','中':'conf-m','低':'conf-l' }; return `<span class="${m[c]||''}">[${esc(c)}]</span>`; }
+function conf(c){
+  const zhMap = { '高':'High', '中':'Med', '低':'Low' };
+  let label = c;
+  if (c === '高' || c === '中' || c === '低') label = (LANG === 'en') ? zhMap[c] : c;
+  else if (c === 'High' || c === 'Med' || c === 'Low') label = (LANG === 'zh') ? ({High:'高',Med:'中',Low:'低'})[c] : c;
+  const m = { '高':'conf-h','中':'conf-m','低':'conf-l', 'High':'conf-h','Med':'conf-m','Low':'conf-l' };
+  return `<span class="${m[c]||m[label]||''}">[${esc(label)}]</span>`;
+}
 
 function render(d){
   let h='';
@@ -225,53 +351,53 @@ function render(d){
   $('result').innerHTML = h;
 }
 
-function srcLink(s){ return s ? ` <a class="src" href="${esc(s)}" target="_blank" rel="noopener">🔗来源</a>` : ''; }
+function srcLink(s){ return s ? ` <a class="src" href="${esc(s)}" target="_blank" rel="noopener">${tf('srcLabel')}</a>` : ''; }
 function renderL1(l){
   let rows = (l.claims||[]).map(c=>`<tr><td>${esc(c.claim)}</td><td>${esc(c.verdict)}${srcLink(c.source)}</td><td>${conf(c.confidence)}</td></tr>`).join('');
   return `<div class="level l1">
-    <h2>🔬 Level 1 第一性原理分析 <span class="badge">物理/经济/逻辑</span></h2>
-    <div class="sec-title">📊 可验证宣称清单</div>
-    <table><tr><th>宣称</th><th>验证结论</th><th>置信度</th></tr>${rows||'<tr><td colspan=3>—</td></tr>'}</table>
-    <div class="sec-title">⚙️ 物理/工程</div><p class="kv">${esc(l.physics)}</p>
-    <div class="sec-title">💰 经济/商业</div><p class="kv">${esc(l.economics)}</p>
-    <div class="sec-title">🧠 逻辑/证据</div><p class="kv">${esc(l.logic)}</p>
-    <div class="sec-title">🏁 综合判断</div>
-    <p class="kv">总体置信度: ${conf(l.overall_confidence)}</p>
-    <p class="kv">最可能夸大: ${esc(l.likely_exaggeration)}</p>
-    <p class="kv">实际效果估计: ${esc(l.realistic_range)}</p>
+    <h2>${tf('l1Title')} <span class="badge">${tf('l1Badge')}</span></h2>
+    <div class="sec-title">${tf('claimsList')}</div>
+    <table><tr><th>${tf('thClaim')}</th><th>${tf('thVerdict')}</th><th>${tf('thConf')}</th></tr>${rows||'<tr><td colspan=3>—</td></tr>'}</table>
+    <div class="sec-title">${tf('sPhysics')}</div><p class="kv">${esc(l.physics)}</p>
+    <div class="sec-title">${tf('sEcon')}</div><p class="kv">${esc(l.economics)}</p>
+    <div class="sec-title">${tf('sLogic')}</div><p class="kv">${esc(l.logic)}</p>
+    <div class="sec-title">${tf('sOverall')}</div>
+    <p class="kv">${tf('overallConf')}: ${conf(l.overall_confidence)}</p>
+    <p class="kv">${tf('likelyExag')}: ${esc(l.likely_exaggeration)}</p>
+    <p class="kv">${tf('realistic')}: ${esc(l.realistic_range)}</p>
   </div>`;
 }
 
 function renderL2(l){
   return `<div class="level l2">
-    <h2>🎯 Level 2 意图匹配分析 <span class="badge">匹配度 ${l.match_score||'-'}/10</span></h2>
-    <p class="kv"><b>针对谁设计:</b> ${esc(l.seller_target)}</p>
-    <p class="kv"><b>心理技巧:</b> ${(l.tactics||[]).map(esc).join(' · ') || '—'}</p>
-    <p class="kv"><b>有意忽略:</b> ${(l.hidden_info||[]).map(esc).join(' · ') || '—'}</p>
-    <div class="sec-title">🙋 你的真实需求</div>
-    <p class="kv"><b>表层:</b> ${esc(l.surface_need)}</p>
-    <p class="kv"><b>深层:</b> ${esc(l.deep_need)}</p>
-    <div class="sec-title">🤝 匹配项</div>
-    ${(l.matches||[]).map(m=>`<div class="kv"><span class="tag ok">✅ 匹配</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
-    <div class="sec-title">❌ 不匹配项</div>
-    ${(l.mismatches||[]).map(m=>`<div class="kv"><span class="tag no">❌ 不匹配</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
+    <h2>${tf('l2Title')} <span class="badge">${tf('l2Badge', l.match_score || '-')}</span></h2>
+    <p class="kv"><b>${tf('forWhom')}:</b> ${esc(l.seller_target)}</p>
+    <p class="kv"><b>${tf('tactics')}:</b> ${(l.tactics||[]).map(esc).join(' · ') || '—'}</p>
+    <p class="kv"><b>${tf('hidden')}:</b> ${(l.hidden_info||[]).map(esc).join(' · ') || '—'}</p>
+    <div class="sec-title">${tf('yourNeed')}</div>
+    <p class="kv"><b>${tf('surface')}:</b> ${esc(l.surface_need)}</p>
+    <p class="kv"><b>${tf('deep')}:</b> ${esc(l.deep_need)}</p>
+    <div class="sec-title">${tf('matches')}</div>
+    ${(l.matches||[]).map(m=>`<div class="kv"><span class="tag ok">${tf('tagMatch')}</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
+    <div class="sec-title">${tf('mismatches')}</div>
+    ${(l.mismatches||[]).map(m=>`<div class="kv"><span class="tag no">${tf('tagNo')}</span>${esc(m.item)} ${esc(m.detail)}</div>`).join('')||'<p class="kv">—</p>'}
   </div>`;
 }
 
 function renderL3(l){
   const alts = (l.alternatives||[]).map(a=>`
     <div class="alt">
-      <h4>🔄 ${esc(a.name)} <span class="badge">匹配 ${a.match||'-'}/10</span></h4>
-      <p class="kv"><b>价格:</b> ${esc(a.price)} ${srcLink(a.source)}</p>
-      <p class="kv"><b>✅ 优势:</b> ${(a.pros||[]).map(esc).join('; ')}</p>
-      <p class="kv"><b>❌ 劣势:</b> ${(a.cons||[]).map(esc).join('; ')}</p>
+      <h4>🔄 ${esc(a.name)} <span class="badge">${tf('matchScore', a.match||'-')}</span></h4>
+      <p class="kv"><b>${tf('price')}:</b> ${esc(a.price)} ${srcLink(a.source)}</p>
+      <p class="kv"><b>${tf('pros')}:</b> ${(a.pros||[]).map(esc).join('; ')}</p>
+      <p class="kv"><b>${tf('cons')}:</b> ${(a.cons||[]).map(esc).join('; ')}</p>
     </div>`).join('');
   return `<div class="level l3">
-    <h2>💡 Level 3 替代方案推荐 <span class="badge">含零方案</span></h2>
-    <p class="kv"><b>关键需求维度:</b> ${(l.key_needs||[]).map(n=>`${esc(n.name)}(${esc(n.weight)})`).join(' · ')}</p>
+    <h2>${tf('l3Title')} <span class="badge">${tf('l3Badge')}</span></h2>
+    <p class="kv"><b>${tf('keyNeeds')}:</b> ${(l.key_needs||[]).map(n=>`${esc(n.name)}(${esc(n.weight)})`).join(' · ')}</p>
     ${alts}
-    <div class="sec-title">方案 0 · 零方案</div><p class="kv">${esc(l.zero_plan)}</p>
-    <div class="sec-title">🏆 综合建议</div><p class="kv">${esc(l.final_recommendation)}</p>
+    <div class="sec-title">${tf('zeroPlan')}</div><p class="kv">${esc(l.zero_plan)}</p>
+    <div class="sec-title">${tf('finalRec')}</div><p class="kv">${esc(l.final_recommendation)}</p>
   </div>`;
 }
 </script>

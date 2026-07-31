@@ -62,11 +62,25 @@ def _detail_instruction(detail: str) -> str:
     )
 
 
+def _language_instruction(lang: str) -> str:
+    if lang == "en":
+        return (
+            "## Output language requirement\n"
+            "The user selected the ENGLISH interface: write ALL report text — every field, "
+            "list item, label, and description — in English. Do not output Chinese."
+        )
+    return (
+        "## 输出语言要求\n"
+        "用户选择了中文界面：所有报告文本（每个字段、列表项与说明）必须使用简体中文输出，不得混用英文。"
+    )
+
+
 async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
     """Level 1 -> Level 2 -> Level 3. 业务规则全部写在这里，显式可控。"""
     product_text = _build_product_text(req.product)
     user_text = _build_user_text(req.user)
     detail_inst = _detail_instruction(req.detail)
+    lang_inst = _language_instruction(req.language)
 
     # --- 联网检索①：Level 1 事实核查材料（搜索失败/无结果则静默降级，不阻塞主流程）---
     l1_queries = []
@@ -79,7 +93,7 @@ async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
     )
 
     # --- Level 1: 第一性原理拆解（始终先跑）---
-    l1_prompt = f"请对这个产品进行 Level 1 第一性原理分析:\n\n{product_text}\n\n{detail_inst}"
+    l1_prompt = f"请对这个产品进行 Level 1 第一性原理分析:\n\n{product_text}\n\n{detail_inst}\n\n{lang_inst}"
     if l1_evidence:
         l1_prompt += (
             "\n\n## 联网核查材料（实时搜索结果，可引用其中的 URL；如与页面宣称冲突，以真实来源为准）\n"
@@ -93,13 +107,18 @@ async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
 
     # --- Level 2: 意图匹配（用户背景缺失时用中性默认值继续，保证 iPhone 截图直传也能出完整报告）---
     if not (req.user.real_need or req.user.budget or req.user.scenario):
-        user_text = "用户背景: 浏览者对该产品感兴趣，想了解它是否值得购买，希望获得客观拆解与替代方案建议（未提供更多背景）。"
+        user_text = (
+            "用户背景: 浏览者对该产品感兴趣，想了解它是否值得购买，希望获得客观拆解与替代方案建议（未提供更多背景）。"
+            if req.language == "zh" else
+            "User background: the visitor is interested in this product and wants to know whether it is worth buying; "
+            "they expect an objective breakdown and alternative recommendations (no further background provided)."
+        )
 
     l2_prompt = (
         f"给定以下产品的 Level 1 分析结论和用户背景，进行 Level 2 意图匹配分析:\n\n"
         f"## 产品信息\n{product_text}\n\n"
         f"## Level 1 结论\n{l1.model_dump_json(indent=2)}\n\n"
-        f"## 用户背景\n{user_text}\n\n{detail_inst}"
+        f"## 用户背景\n{user_text}\n\n{detail_inst}\n\n{lang_inst}"
     )
     l2_res = await level2_agent.run(l2_prompt)
     l2 = l2_res.output
@@ -121,7 +140,7 @@ async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
         f"## 产品信息\n{product_text}\n\n"
         f"## Level 1 结论\n{l1.model_dump_json(indent=2)}\n\n"
         f"## Level 2 结论\n{l2.model_dump_json(indent=2)}\n\n"
-        f"## 用户背景\n{user_text}\n\n{detail_inst}"
+        f"## 用户背景\n{user_text}\n\n{detail_inst}\n\n{lang_inst}"
     )
     if l3_evidence:
         l3_prompt += (
@@ -139,7 +158,7 @@ async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
 
     return PipelineResult(
         status="ok",
-        message="分析完成。",
+        message="分析完成。" if req.language == "zh" else "Analysis complete.",
         product_summary=product_text,
         level1=l1,
         level2=l2,

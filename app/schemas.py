@@ -21,6 +21,7 @@ class AnalysisRequest(BaseModel):
     product: ProductInfo
     user: UserContext = Field(default_factory=UserContext)
     detail: Literal["concise", "lengthy"] = "concise"  # 解释详细程度：简洁(默认)/详细
+    language: Literal["zh", "en"] = "zh"  # 界面/输出语言：中文(默认)/英文
 
 # ---------- Level 1 ----------
 class ClaimCheck(BaseModel):
