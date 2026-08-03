@@ -181,6 +181,106 @@ def extract_from_image(path_or_pil):
                 "name": "", "price": "", "claims": "", "page_text": "", "method": "none"}
 
 
+# ---------- clothing fabric recognition (clothing mode) ----------
+_FABRIC_PROMPT = (
+    "识别这张服装面料特写照片的材质。先看纹理/织法/光泽/绒感/皱褶再判断。"
+    "规则: ①网眼/蜂窝/针织只是织法，不等于化纤，棉和羊毛也能织成网眼；"
+    "②亚麻=纱线粗细不匀、有竹节感、易皱、哑光；③棉=细密均匀、微绒感、哑光；"
+    "④羊毛=纤维卷曲、绒感蓬松、柔和光泽；⑤化纤=过于均匀规则、塑料光泽或弹力感。"
+    '只输出JSON，不要多余文字: {"material":"羊毛/羊绒/亚麻/棉/真丝/涤纶/尼龙/粘胶/混纺/其他(写具体)","confidence":"高/中/低","evidence":"判断依据，25字内"}'
+)
+
+
+def _mimo_fabric(jpeg: bytes, timeout=150) -> dict:
+    """单次 Mimo 面料识别（短 prompt，尽量保证 JSON）。"""
+    b64 = base64.b64encode(jpeg).decode()
+    base_url, api_key = _mimo_config()
+    payload = {
+        "model": "mimo-v2.5",
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": _FABRIC_PROMPT},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+        ]}],
+        "max_tokens": 700,
+    }
+    req = urllib.request.Request(
+        base_url.rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        resp = json.loads(r.read().decode())
+    content = resp["choices"][0]["message"]["content"]
+    if isinstance(content, dict):
+        content = content.get("text") or json.dumps(content, ensure_ascii=False)
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Mimo 返回空内容")
+    m = re.search(r"\{.*\}", content, re.S)
+    if not m:
+        raise ValueError(f"Mimo 面料识别非 JSON: {content[:120]}")
+    d = json.loads(m.group(0))
+    return {
+        "material": str(d.get("material", "")).strip(),
+        "confidence": str(d.get("confidence", "低")).strip(),
+        "evidence": str(d.get("evidence", "")).strip(),
+    }
+
+
+def extract_fabric_from_image(path_or_pil, votes: int = 2, timeout=150) -> dict:
+    """服装模式面料识别：Mimo 视觉投票（各 2 次取多数/高置信）→ RapidOCR 洗标文字。
+    返回 {ok, material, confidence, evidence, label_text, method, hint}。"""
+    try:
+        jpeg = _to_jpeg_bytes(path_or_pil)
+        attempts, errors = [], []
+        for _ in range(votes):
+            # 每轮最多重试 2 次（Mimo 偶发空内容/非JSON）
+            for _try in range(2):
+                try:
+                    attempts.append(_mimo_fabric(jpeg, timeout=timeout))
+                    break
+                except Exception as e:
+                    errors.append(str(e)[:80])
+        good = [a for a in attempts if a.get("material")]
+        if not good:
+            return {"ok": False, "material": "", "confidence": "", "evidence": "",
+                    "label_text": "", "method": "none",
+                    "hint": f"面料识别失败: {'; '.join(errors) or 'Mimo 无有效输出'}"}
+        # 投票：material 出现次数优先，平票取 confidence 更高者
+        from collections import Counter
+        cnt = Counter(a["material"] for a in good)
+        top = cnt.most_common(1)[0]
+        winners = [a for a in good if a["material"] == top[0]]
+        best = max(winners, key=lambda a: {"高": 3, "中": 2, "低": 1}.get(a["confidence"], 0))
+        # 洗标 OCR（若图片含文字：吊牌/洗标）
+        label_text = ""
+        try:
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+            tmp.write(jpeg); tmp.close()
+            try:
+                from ocr_utils import ocr_image
+                ocr = ocr_image(tmp.name)
+                label_text = (ocr.get("text") if isinstance(ocr, dict) else str(ocr)) or ""
+            finally:
+                os.unlink(tmp.name)
+        except Exception:
+            label_text = ""
+        return {
+            "ok": True,
+            "material": best["material"],
+            "confidence": best["confidence"],
+            "evidence": best["evidence"],
+            "label_text": label_text.strip()[:800],
+            "method": f"mimo-vision x{votes}+ocr",
+            "hint": f"Mimo 视觉识别（{votes} 次投票）完成"
+                    + (f"，OCR 读取到标签文本" if label_text.strip() else "，未检测到标签文字"),
+        }
+    except Exception as e:
+        return {"ok": False, "material": "", "confidence": "", "evidence": "",
+                "label_text": "", "method": "none", "hint": f"面料识别异常: {str(e)[:150]}"}
+
+
 def _ocr_text_soft(jpeg: bytes) -> str:
     try:
         from ocr_utils import ocr_image  # optional local OCR helper

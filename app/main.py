@@ -18,9 +18,9 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 from schemas import AnalysisRequest, PipelineResult
-from orchestrator import run_pipeline
+from orchestrator import run_pipeline, run_clothing_pipeline
 from fetcher import fetch_page
-from image_extractor import extract_from_image
+from image_extractor import extract_from_image, extract_fabric_from_image
 
 APP_DIR = Path(__file__).parent
 app = FastAPI(title="Purchasing Decision Facilitator", version="0.4.0")
@@ -81,6 +81,9 @@ async def _task_full(req: AnalysisRequest) -> PipelineResult:
             )
         req.product.page_text = f"标题: {f.get('title','')}\n价格: {f.get('price','')}\n内容: {f.get('text','')}"
         req.product.price = req.product.price or f.get("price", "")
+    if req.mode == "clothing":
+        # 文本服装模式：无面料视觉识别，管道会引导用户自查（看水洗标/触感）
+        return await run_clothing_pipeline(req, None)
     return await run_pipeline(req)
 
 
@@ -103,6 +106,20 @@ async def _task_image(img_path: str, detail: str = "concise", language: str = "z
     return await run_pipeline(req)
 
 
+async def _task_image_clothing(img_path: str, detail: str = "concise", language: str = "zh",
+                               claims: str = "") -> PipelineResult:
+    """服装模式：面料特写/洗标照片 → 面料识别 → 服装购物指南。"""
+    fabric = await asyncio.to_thread(extract_fabric_from_image, img_path)
+    req = AnalysisRequest(
+        product={"name": "", "claims": claims, "price": "", "page_text": ""},
+        user={"real_need": "", "budget": "", "scenario": ""},
+        detail=detail if detail in ("concise", "lengthy") else "concise",
+        language=language if language in ("zh", "en") else "zh",
+        mode="clothing",
+    )
+    return await run_clothing_pipeline(req, fabric)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return (APP_DIR / "static" / "index.html").read_text(encoding="utf-8")
@@ -122,6 +139,8 @@ class ImageUpload(BaseModel):
     image_b64: str
     detail: str = "concise"
     language: str = "zh"
+    mode: str = "product"          # product | clothing
+    claims: str = ""               # clothing 模式：用户补充的衣物类型/触感描述
 
 
 @app.post("/analyze_image")
@@ -138,13 +157,22 @@ async def analyze_image(upload: ImageUpload):
     tmp.close()
     task_id = uuid.uuid4().hex
     _TASKS[task_id] = {"status": "pending"}
-    asyncio.create_task(_task_image_cleanup(task_id, tmp.name, upload.detail, upload.language))
+    if upload.mode == "clothing":
+        asyncio.create_task(_task_image_cleanup(
+            task_id, tmp.name, upload.detail, upload.language,
+            clothing=True, claims=upload.claims))
+    else:
+        asyncio.create_task(_task_image_cleanup(task_id, tmp.name, upload.detail, upload.language))
     return {"task_id": task_id}
 
 
-async def _task_image_cleanup(task_id: str, img_path: str, detail: str = "concise", language: str = "zh"):
+async def _task_image_cleanup(task_id: str, img_path: str, detail: str = "concise",
+                              language: str = "zh", clothing: bool = False, claims: str = ""):
     try:
-        await _task_run(task_id, _task_image, img_path, detail, language, lang=language)
+        if clothing:
+            await _task_run(task_id, _task_image_clothing, img_path, detail, language, claims, lang=language)
+        else:
+            await _task_run(task_id, _task_image, img_path, detail, language, lang=language)
     finally:
         try:
             os.unlink(img_path)

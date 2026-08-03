@@ -58,6 +58,12 @@
   .detail-opt { display:flex; gap:16px; margin-top:4px; }
   .detail-opt label { display:flex; align-items:center; gap:6px; margin:0; color:var(--text); font-weight:500; font-size:14px; }
   .detail-opt input[type="radio"] { width:auto; accent-color:var(--accent); }
+  .mode-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .mode-tabs button { flex:1; background:var(--card); border:1px solid var(--border); color:var(--muted); border-radius:12px; padding:13px 8px; font-size:15px; font-weight:700; cursor:pointer; }
+  .mode-tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .list-item { border:1px dashed var(--border); border-radius:10px; padding:10px; margin:6px 0; font-size:13px; line-height:1.5; }
+  .warn-box { background:#2a1f0e; border:1px solid #5a4310; color:#ffd60a; border-radius:10px; padding:12px; font-size:13px; margin:10px 0; line-height:1.5; }
+  .fabric-badge { display:inline-block; background:#0d2e1c; color:var(--ok); border-radius:8px; padding:4px 10px; font-size:14px; font-weight:700; margin-bottom:4px; }
 </style>
 </head>
 <body>
@@ -73,6 +79,12 @@
     </div>
   </header>
 
+  <div class="mode-tabs">
+    <button type="button" id="tabProduct" class="active" data-i18n="tabProduct">🛍 商品分析</button>
+    <button type="button" id="tabClothing" data-i18n="tabClothing">👕 服装面料</button>
+  </div>
+
+  <div id="productPanel">
   <div class="card shot-card">
     <label style="font-size:16px" data-i18n="shotTitle">📸 上传商品页截图（推荐：淘宝/京东/美团等）</label>
     <div class="hint" data-i18n="shotHint">在 App 里打开商品页 → 截图 → 上传即可，自动识别商品名/价格/卖点，不受反爬影响</div>
@@ -103,6 +115,39 @@
     </div>
     <button class="btn" id="go" data-i18n="goBtn">开始分析</button>
     <div class="hint" data-i18n="formHint">分析包含 3 个层次，约需 1-2 分钟。若未填写需求，先返回 Level 1 结果。</div>
+  </div>
+  </div><!-- /productPanel -->
+
+  <div id="clothingPanel" style="display:none">
+    <div class="card shot-card">
+      <label style="font-size:16px" data-i18n="clothShotTitle">📸 上传面料特写 / 洗标照片</label>
+      <div class="hint" data-i18n="clothShotHint">拍衣服的布料近照或水洗标（含成分）最准；没有照片也可直接填下面的描述</div>
+      <label class="shot-label" for="clothFile" data-i18n="clothShotLabel">＋ 拍/选面料照片（可选）</label>
+      <input id="clothFile" type="file" accept="image/*">
+      <img id="clothPreview" alt="preview">
+      <div class="row2">
+        <button class="btn ghost" id="clothClear" style="display:none" data-i18n="clear">清除</button>
+        <button class="btn" id="clothGo" style="display:none" data-i18n="clothGo">分析照片</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label data-i18n="fClothType">衣物类型</label>
+      <input id="clothType" data-i18n-ph="phClothType" placeholder="例如：羊毛大衣 / 棉T恤 / 牛仔裤">
+      <label data-i18n="fClothDesc">补充描述（触感/成分标签/品牌/价格）</label>
+      <textarea id="clothDesc" data-i18n-ph="phClothDesc" placeholder="例如：摸起来柔软，标签写100%羊毛，价格399"></textarea>
+      <label data-i18n="fNeed2">用途 / 需求</label>
+      <textarea id="clothNeed" data-i18n-ph="phClothNeed" placeholder="例如：冬天通勤穿，怕冷，想要好打理的"></textarea>
+      <label data-i18n="fBudget2">预算</label>
+      <input id="clothBudget" data-i18n-ph="phBudget" placeholder="例如：500 元以内">
+      <label data-i18n="fDetail">解释详细程度</label>
+      <div class="detail-opt">
+        <label class="opt"><input type="radio" name="detail" value="concise" checked> <span data-i18n="optConcise">⚡ 简洁（默认）</span></label>
+        <label class="opt"><input type="radio" name="detail" value="lengthy"> <span data-i18n="optLengthy">📖 详细</span></label>
+      </div>
+      <button class="btn" id="clothGoText" data-i18n="clothGoText">开始分析</button>
+      <div class="hint" data-i18n="clothHint">先看照片识别面料，再用 3 层指南帮你判断值不值、好不好打理。识别结果仅供参考，请以实物标签为准。</div>
+    </div>
   </div>
 
   <div id="status"><div class="spinner"></div><p data-i18n="analyzing">正在分析中，请稍候…</p></div>
@@ -157,7 +202,22 @@ const I18N = {
     l3Title: '💡 Level 3 替代方案推荐', l3Badge: '含零方案',
     matchScore: (m) => `匹配 ${m}/10`, price: '价格', pros: '✅ 优势', cons: '❌ 劣势',
     keyNeeds: '关键需求维度', zeroPlan: '方案 0 · 零方案', finalRec: '🏆 综合建议',
-    srcLabel: '🔗来源'
+    srcLabel: '🔗来源',
+    tabProduct: '🛍 商品分析', tabClothing: '👕 服装面料',
+    clothShotTitle: '📸 上传面料特写 / 洗标照片', clothShotHint: '拍衣服的布料近照或水洗标（含成分）最准；没有照片也可直接填下面的描述',
+    clothShotLabel: '＋ 拍/选面料照片（可选）', clothGo: '分析照片',
+    fClothType: '衣物类型', phClothType: '例如：羊毛大衣 / 棉T恤 / 牛仔裤',
+    fClothDesc: '补充描述（触感/成分标签/品牌/价格）', phClothDesc: '例如：摸起来柔软，标签写100%羊毛，价格399',
+    fNeed2: '用途 / 需求', phClothNeed: '例如：冬天通勤穿，怕冷，想要好打理的',
+    fBudget2: '预算', clothGoText: '开始分析',
+    clothHint: '先看照片识别面料，再用 3 层指南帮你判断值不值、好不好打理。识别结果仅供参考，请以实物标签为准。',
+    needClothInput: '请填写衣物类型或描述',
+    cTitle: '面料识别', cMaterial: '材质', cUnknown: '（未能识别）', cEvidence: '识别依据', cLabel: '洗标/吊牌 OCR',
+    cWarnNoMat: '未能从照片识别出材质。建议拍清晰的水洗标/成分标签重试，或直接看衣服内里的标签；以下为通用指南，请以实物为准。',
+    cWarnLow: '识别置信度低，结论仅供参考。最可靠的方式是查看衣服内里的成分标签。',
+    cGuide: '面料拆解（小白版）', cTraits: '材质特性', cPros: '优点', cCons: '缺点/坑', cCare: '洗护保养', cDiy: '自己动手鉴别', cPriceSense: '价格区间点评', cSummary: '一句话结论',
+    cShopping: '选购搭配指南', cFit: '版型/尺码', cOccasions: '适合场合', cStyling: '搭配建议', cAvoid: '避坑清单',
+    cAlts: '替代方案', cAltList: '替代选项'
   },
   en: {
     headerSub: 'First Principles · Intent Matching · Alternatives — see through marketing hype in 3 levels',
@@ -200,7 +260,22 @@ const I18N = {
     l3Title: '💡 Level 3 Alternatives', l3Badge: 'incl. zero-option',
     matchScore: (m) => `Match ${m}/10`, price: 'Price', pros: '✅ Pros', cons: '❌ Cons',
     keyNeeds: 'Key need dimensions', zeroPlan: 'Option 0 · Do nothing', finalRec: '🏆 Final Recommendation',
-    srcLabel: '🔗Source'
+    srcLabel: '🔗Source',
+    tabProduct: '🛍 Product Analysis', tabClothing: '👕 Clothing & Fabric',
+    clothShotTitle: '📸 Upload fabric close-up / care-label photo', clothShotHint: 'A close-up of the fabric or care label (with composition) works best; or just fill in the description below',
+    clothShotLabel: '＋ Take/choose fabric photo (optional)', clothGo: 'Analyze photo',
+    fClothType: 'Clothing type', phClothType: 'e.g. wool coat / cotton tee / jeans',
+    fClothDesc: 'Extra details (feel / composition label / brand / price)', phClothDesc: 'e.g. soft to the touch, label says 100% wool, ¥399',
+    fNeed2: 'Purpose / needs', phClothNeed: 'e.g. winter commute, get cold easily, want low-maintenance',
+    fBudget2: 'Budget', clothGoText: 'Start Analysis',
+    clothHint: 'We identify the fabric from the photo, then give a 3-level guide: is it worth it, easy to care for, what to look out for. Results are reference only — trust the physical label.',
+    needClothInput: 'Please enter clothing type or description',
+    cTitle: 'Fabric Recognition', cMaterial: 'Material', cUnknown: '(not identified)', cEvidence: 'Evidence', cLabel: 'Care-label OCR',
+    cWarnNoMat: 'Could not identify the material from the photo. Try a clear care/composition label, or check the tag inside the garment; the guide below is general knowledge — trust the physical label.',
+    cWarnLow: 'Low recognition confidence — treat as reference only. The most reliable way is to read the composition label inside the garment.',
+    cGuide: 'Fabric 101 (beginner-friendly)', cTraits: 'Fabric traits', cPros: 'Pros', cCons: 'Cons / pitfalls', cCare: 'Care & washing', cDiy: 'How to check it yourself', cPriceSense: 'Price sense', cSummary: 'Bottom line',
+    cShopping: 'Shopping & Styling Guide', cFit: 'Fit / size', cOccasions: 'Best for', cStyling: 'How to style', cAvoid: 'Watch out for',
+    cAlts: 'Alternatives', cAltList: 'Alternative options'
   }
 };
 
@@ -310,6 +385,74 @@ $('shotGo').addEventListener('click', () => {
   reader.readAsDataURL(_shotFile);
 });
 
+// ---- 双模式 tab ----
+let MODE = 'product';
+function switchMode(m){
+  MODE = m;
+  $('tabProduct').classList.toggle('active', m==='product');
+  $('tabClothing').classList.toggle('active', m==='clothing');
+  $('productPanel').style.display = m==='product' ? 'block' : 'none';
+  $('clothingPanel').style.display = m==='clothing' ? 'block' : 'none';
+  $('result').innerHTML = ''; $('status').style.display = 'none';
+}
+$('tabProduct').addEventListener('click', () => switchMode('product'));
+$('tabClothing').addEventListener('click', () => switchMode('clothing'));
+
+// ---- 服装：照片上传 ----
+let _clothFile = null;
+function clothClaims(){
+  return [$('clothType').value.trim(), $('clothDesc').value.trim()].filter(Boolean).join('；');
+}
+$('clothFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  _clothFile = f;
+  const url = URL.createObjectURL(f);
+  $('clothPreview').src = url;
+  $('clothPreview').style.display = 'block';
+  $('clothGo').style.display = 'block';
+  $('clothClear').style.display = 'block';
+  setTimeout(() => { if (_clothFile) $('clothGo').click(); }, 400);
+});
+$('clothClear').addEventListener('click', () => {
+  _clothFile = null; $('clothFile').value = '';
+  $('clothPreview').style.display = 'none'; $('clothGo').style.display = 'none'; $('clothClear').style.display = 'none';
+});
+$('clothGo').addEventListener('click', () => {
+  if (!_clothFile) { alert(tf('needShot')); return; }
+  $('clothGo').disabled = true;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * scale);
+      cv.height = Math.round(img.height * scale);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const b64 = cv.toDataURL('image/jpeg', 0.8).split(',')[1];
+      startTask(fetch('/analyze_image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_b64: b64, detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise', language: LANG, mode: 'clothing', claims: clothClaims() }) }), $('clothGo'));
+    };
+    img.onerror = () => { showErr(tf('imgParseErr')); $('clothGo').disabled = false; };
+    img.src = e.target.result;
+  };
+  reader.onerror = () => { showErr(tf('imgReadErr')); $('clothGo').disabled = false; };
+  reader.readAsDataURL(_clothFile);
+});
+$('clothGoText').addEventListener('click', () => {
+  const claims = clothClaims();
+  if (!claims) { alert(tf('needClothInput')); return; }
+  const body = {
+    product: { link: '', claims: claims, price: '', name: $('clothType').value.trim() || '' },
+    user: { real_need: $('clothNeed').value.trim(), budget: $('clothBudget').value.trim(), scenario: '' },
+    detail: (document.querySelector('input[name="detail"]:checked')||{}).value || 'concise',
+    language: LANG, mode: 'clothing'
+  };
+  startTask(fetch('/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }), $('clothGoText'));
+});
+
 $('go').addEventListener('click', () => {
   const body = {
     product: {
@@ -348,6 +491,7 @@ function render(d){
   if (d.level1) h += renderL1(d.level1);
   if (d.level2) h += renderL2(d.level2);
   if (d.level3) h += renderL3(d.level3);
+  if (d.clothing) h += renderClothing(d.clothing);
   $('result').innerHTML = h;
 }
 
@@ -399,6 +543,51 @@ function renderL3(l){
     <div class="sec-title">${tf('zeroPlan')}</div><p class="kv">${esc(l.zero_plan)}</p>
     <div class="sec-title">${tf('finalRec')}</div><p class="kv">${esc(l.final_recommendation)}</p>
   </div>`;
+}
+
+// ---- 服装模式渲染 ----
+function renderClothing(c){
+  const f = c.fabric || {};
+  let h = `<div class="level l1"><h2>🔍 ${tf('cTitle')}</h2>`;
+  if (f.material) {
+    h += `<div class="fabric-badge">${esc(f.material)}${f.confidence ? ' ' + conf(f.confidence) : ''}</div>`;
+  } else {
+    h += `<div class="fabric-badge">${tf('cUnknown')}</div>`;
+  }
+  if (f.evidence) h += `<p class="kv"><b>${tf('cEvidence')}:</b> ${esc(f.evidence)}</p>`;
+  if (f.label_text) h += `<p class="kv"><b>${tf('cLabel')}:</b> ${esc(f.label_text)}</p>`;
+  if (f.method) h += `<p class="kv"><b>${tf('cEvidence')}（${esc(f.method)}）</b></p>`;
+  if (!f.material) h += `<div class="warn-box">⚠️ ${tf('cWarnNoMat')}</div>`;
+  else if (f.confidence === '低' || f.confidence === 'Low') h += `<div class="warn-box">⚠️ ${tf('cWarnLow')}</div>`;
+  h += `</div>`;
+
+  const g = c.guide || {};
+  h += `<div class="level l1"><h2>🧵 ${tf('cGuide')}</h2>`;
+  if ((g.traits||[]).length) h += `<div class="sec-title">${tf('cTraits')}</div>${g.traits.map(x=>`<div class="list-item">✅ ${esc(x)}</div>`).join('')}`;
+  if ((g.pros||[]).length) h += `<div class="sec-title">${tf('cPros')}</div>${g.pros.map(x=>`<div class="list-item">👍 ${esc(x)}</div>`).join('')}`;
+  if ((g.cons||[]).length) h += `<div class="sec-title">${tf('cCons')}</div>${g.cons.map(x=>`<div class="list-item">⚠️ ${esc(x)}</div>`).join('')}`;
+  if ((g.care||[]).length) h += `<div class="sec-title">${tf('cCare')}</div>${g.care.map(x=>`<div class="list-item">🧺 ${esc(x)}</div>`).join('')}`;
+  if ((g.diy_tests||[]).length) h += `<div class="sec-title">${tf('cDiy')}</div>${g.diy_tests.map(x=>`<div class="list-item">🔍 ${esc(x)}</div>`).join('')}`;
+  if (g.price_sense) h += `<div class="sec-title">${tf('cPriceSense')}</div><p class="kv">💰 ${esc(g.price_sense)}</p>`;
+  if (g.summary) h += `<div class="sec-title">${tf('cSummary')}</div><p class="kv">🏁 ${esc(g.summary)}</p>`;
+  h += `</div>`;
+
+  const s = c.shopping || {};
+  h += `<div class="level l2"><h2>👗 ${tf('cShopping')}</h2>`;
+  if (s.fit) h += `<p class="kv"><b>${tf('cFit')}:</b> ${esc(s.fit)}</p>`;
+  if ((s.occasions||[]).length) h += `<div class="sec-title">${tf('cOccasions')}</div>${s.occasions.map(x=>`<div class="list-item">📅 ${esc(x)}</div>`).join('')}`;
+  if ((s.styling||[]).length) h += `<div class="sec-title">${tf('cStyling')}</div>${s.styling.map(x=>`<div class="list-item">💃 ${esc(x)}</div>`).join('')}`;
+  if ((s.avoid||[]).length) h += `<div class="sec-title">${tf('cAvoid')}</div>${s.avoid.map(x=>`<div class="list-item">🚫 ${esc(x)}</div>`).join('')}`;
+  if (s.summary) h += `<div class="sec-title">${tf('cSummary')}</div><p class="kv">🏁 ${esc(s.summary)}</p>`;
+  h += `</div>`;
+
+  const a = c.alternatives || {};
+  h += `<div class="level l3"><h2>💡 ${tf('cAlts')}</h2>`;
+  if ((a.alternatives||[]).length) h += `<div class="sec-title">${tf('cAltList')}</div>${a.alternatives.map(x=>`<div class="alt"><p class="kv">🔄 ${esc(x)}</p></div>`).join('')}`;
+  if (a.zero_plan) h += `<div class="sec-title">${tf('zeroPlan')}</div><p class="kv">${esc(a.zero_plan)}</p>`;
+  if (a.final_recommendation) h += `<div class="sec-title">${tf('finalRec')}</div><p class="kv">${esc(a.final_recommendation)}</p>`;
+  h += `</div>`;
+  return h;
 }
 </script>
 </body>

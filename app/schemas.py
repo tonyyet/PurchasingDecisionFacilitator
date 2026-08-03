@@ -22,6 +22,7 @@ class AnalysisRequest(BaseModel):
     user: UserContext = Field(default_factory=UserContext)
     detail: Literal["concise", "lengthy"] = "concise"  # 解释详细程度：简洁(默认)/详细
     language: Literal["zh", "en"] = "zh"  # 界面/输出语言：中文(默认)/英文
+    mode: Literal["product", "clothing"] = "product"  # 分析模式：商品分析(默认)/服装面料
 
 # ---------- Level 1 ----------
 class ClaimCheck(BaseModel):
@@ -75,11 +76,49 @@ class Level3Report(BaseModel):
     zero_plan: str = ""
     final_recommendation: str = ""
 
+# ---------- Clothing mode (fashion for the uninitiated) ----------
+class FabricInfo(BaseModel):
+    material: str = ""        # 识别出的材质
+    confidence: str = ""      # 高/中/低
+    evidence: str = ""        # 视觉识别依据
+    label_text: str = ""      # 洗标/吊牌 OCR 文本
+    method: str = ""          # 识别方式
+    hint: str = ""            # 识别过程提示（含限制说明）
+
+class FabricGuide(BaseModel):
+    traits: list[str] = []    # 材质特性（通俗语言）
+    pros: list[str] = []      # 优点
+    cons: list[str] = []      # 缺点/坑
+    care: list[str] = []      # 洗护保养要点
+    diy_tests: list[str] = [] # 小白自查方法（手感/标签/烧毛等）
+    price_sense: str = ""     # 合理价格区间/价格点评
+    summary: str = ""         # 一句话结论
+
+class ShoppingGuide(BaseModel):
+    fit: str = ""             # 版型/尺码挑选要点
+    occasions: list[str] = [] # 适合场合
+    styling: list[str] = []   # 搭配建议
+    avoid: list[str] = []     # 避坑清单
+    summary: str = ""         # 一句话建议
+
+class AlternativesGuide(BaseModel):
+    alternatives: list[str] = []  # 替代选项（含价格区间与理由）
+    zero_plan: str = ""           # 零方案（不买也能解决）
+    final_recommendation: str = ""  # 最终建议（可执行步骤）
+
+class ClothingReport(BaseModel):
+    fabric: FabricInfo = Field(default_factory=FabricInfo)
+    guide: FabricGuide = Field(default_factory=FabricGuide)
+    shopping: ShoppingGuide = Field(default_factory=ShoppingGuide)
+    alternatives: AlternativesGuide = Field(default_factory=AlternativesGuide)
+
 # ---------- Result ----------
 class PipelineResult(BaseModel):
     status: str = "ok"               # ok | need_user_input
     message: str = ""
     product_summary: str = ""
+    mode: str = "product"
     level1: Level1Report | None = None
     level2: Level2Report | None = None
     level3: Level3Report | None = None
+    clothing: ClothingReport | None = None

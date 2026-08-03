@@ -11,7 +11,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from schemas import Level1Report, Level2Report, Level3Report
+from schemas import (Level1Report, Level2Report, Level3Report,
+                     FabricGuide, ShoppingGuide, AlternativesGuide)
 
 # ---------- LLM backend: DeepSeek ----------
 _api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
@@ -81,6 +82,43 @@ SYSTEM_L3 = """你是资深购买决策分析师 (Senior Purchasing Decision Ana
 
 用用户使用的语言输出。"""
 
+# ---------- Clothing agents (fashion for the uninitiated) ----------
+SYSTEM_CL1 = """你是服装购物导师 (Clothing Shopping Coach)，服务对象是完全不懂时尚的小白。
+你正在帮用户解读一件衣物的面料。核心原则:
+1. 通俗:用买菜、家居、日常生活的类比解释专业概念，禁止术语堆砌。
+2. 实用:每条建议都要能立刻执行（怎么摸手感、看哪个标签、做什么小测试）。
+3. 诚实:面料来自视觉识别，可能不准——置信度低时必须教用户自查；识别失败时基于用户描述给引导。
+4. 用户利益至上:帮用户判断这件衣服值不值、好不好打理、耐不耐穿。
+
+【面料拆解】按字段输出:
+- traits: 该面料的核心特性清单（透气/保暖/挺括/垂坠/易皱/起球/弹性/耐穿/缩水等），用生活化语言
+- pros: 优点（为什么有人喜欢穿它）
+- cons: 缺点/坑（它让人头疼的地方）
+- care: 洗护要点（能否机洗/水温/晾晒方式/是否易缩水变形）
+- diy_tests: 小白自查方法（摸手感、看成分标签、滴水/透气测试、火烧测试的注意事项与安全警告）
+- price_sense: 该材质的合理价格区间（按档次），若用户给出价格则点评是否合理
+- summary: 一句话结论
+
+用用户使用的语言输出。"""
+
+SYSTEM_CL2 = """你是服装购物导师，面向时尚小白。
+【选购搭配指南】给定面料分析与用户背景（衣物类型/用途/预算/场景），按字段输出:
+- fit: 版型与尺码挑选要点（针对该衣物类型，通俗说明）
+- occasions: 适合的场合清单（按天气/场景分类）
+- styling: 日常搭配建议（不堆砌时尚术语，给可照做的组合）
+- avoid: 避坑清单（小白最容易踩的坑：电商图与实物差异、材质虚标、易洗坏的衣服特征、品牌溢价）
+- summary: 一句话购买建议
+
+用用户使用的语言输出。"""
+
+SYSTEM_CL3 = """你是服装购物导师，面向时尚小白。
+【替代方案】给定以上分析，按字段输出:
+- alternatives: 替代选项清单（同类型不同材质/价位/风格的选择，每条含大致价格区间与适合谁）
+- zero_plan: 零方案（不一定非要买：利用现有衣物搭配、改造、租借/二手等思路）
+- final_recommendation: 最终建议（买/不买/怎么买，给出 3 步以内的可执行动作）
+
+用用户使用的语言输出。"""
+
 # ---------- Typed Agents ----------
 level1_agent = Agent(
     model=_model,
@@ -101,4 +139,25 @@ level3_agent = Agent(
     model_settings=DEEPSEEK_SETTINGS,
     output_type=Level3Report,
     system_prompt=SYSTEM_L3,
+)
+
+clothing_guide_agent = Agent(
+    model=_model,
+    model_settings=DEEPSEEK_SETTINGS,
+    output_type=FabricGuide,
+    system_prompt=SYSTEM_CL1,
+)
+
+shopping_guide_agent = Agent(
+    model=_model,
+    model_settings=DEEPSEEK_SETTINGS,
+    output_type=ShoppingGuide,
+    system_prompt=SYSTEM_CL2,
+)
+
+alternatives_agent = Agent(
+    model=_model,
+    model_settings=DEEPSEEK_SETTINGS,
+    output_type=AlternativesGuide,
+    system_prompt=SYSTEM_CL3,
 )

@@ -1,7 +1,9 @@
 """Business logic layer — the whole pipeline is plain Python, fully controllable."""
 import asyncio
-from schemas import AnalysisRequest, PipelineResult, ProductInfo, UserContext
-from agents import level1_agent, level2_agent, level3_agent
+from schemas import (AnalysisRequest, PipelineResult, ProductInfo, UserContext,
+                     ClothingReport, FabricInfo)
+from agents import (level1_agent, level2_agent, level3_agent,
+                    clothing_guide_agent, shopping_guide_agent, alternatives_agent)
 from search_utils import web_search
 
 
@@ -163,4 +165,104 @@ async def run_pipeline(req: AnalysisRequest) -> PipelineResult:
         level1=l1,
         level2=l2,
         level3=l3,
+    )
+
+
+# ---------- Clothing mode pipeline (fashion for the uninitiated) ----------
+async def run_clothing_pipeline(req: AnalysisRequest, fabric: dict | None = None) -> PipelineResult:
+    """服装模式：面料识别结果 + 用户背景 -> 面料拆解 -> 选购搭配 -> 替代方案。
+    视觉识别只是线索之一：置信度低/无结果时引导用户自查，避免误导小白。"""
+    fabric = fabric or {}
+    detail_inst = _detail_instruction(req.detail)
+    lang_inst = _language_instruction(req.language)
+
+    material = (fabric.get("material") or "").strip()
+    confidence = (fabric.get("confidence") or "").strip()
+    evidence = (fabric.get("evidence") or "").strip()
+    label_text = (fabric.get("label_text") or "").strip()
+    hint = (fabric.get("hint") or "").strip()
+
+    # 面料识别上下文（含诚实的限制说明）
+    ctx_lines = ["## 衣物/面料信息"]
+    ctx_lines.append(f"- 视觉识别材质: {material or '(未能识别)'}（置信度: {confidence or '-'}）")
+    if evidence:
+        ctx_lines.append(f"- 识别依据: {evidence}")
+    if label_text:
+        ctx_lines.append(f"- 洗标/吊牌 OCR 文本: {label_text}")
+    if hint:
+        ctx_lines.append(f"- 识别说明: {hint}")
+    if not material:
+        ctx_lines.append(
+            "- ⚠️ 视觉识别未给出材质结论。请引导用户自查（看水洗标成分、摸手感），"
+            "并在每个结论前注明『这是通用知识，请以实物标签为准』。"
+        )
+    elif confidence == "低":
+        ctx_lines.append(
+            "- ⚠️ 识别置信度低。请在建议中主动教用户核实（看成分标签是最可靠方式），"
+            "避免把视觉判断当事实。"
+        )
+    ctx = "\n".join(ctx_lines)
+
+    # 用户提供的衣物/触感描述（product.claims 里存放"触感描述/衣物类型"）
+    if req.product.claims:
+        ctx += f"\n## 用户补充描述\n{req.product.claims}"
+
+    user_text = _build_user_text(req.user)
+    if not user_text.strip() or user_text.strip() == "(未提供用户背景)":
+        user_text = (
+            "用户背景: 想买/已经看中一件衣服，作为时尚小白希望了解这件衣服是否适合自己、好不好打理、值不值。"
+            if req.language == "zh" else
+            "User background: interested in a piece of clothing; as a fashion beginner, "
+            "wants to know whether it suits them, is easy to care for, and worth the price."
+        )
+
+    # --- 联网检索：面料客观信息 ---
+    queries = []
+    if material:
+        queries.append(f"{material} 面料 优缺点 怎么保养")
+        queries.append(f"{material} 衣服 怎么挑选 鉴别 真假")
+    search = await _search_parallel(queries)
+    search_text = "\n\n".join(f"### 检索: {q}\n{_fmt_results(rs)}" for q, rs in search.items() if rs)
+
+    # --- 1. 面料拆解 ---
+    g1_prompt = f"{ctx}\n\n{user_text}\n\n{detail_inst}\n\n{lang_inst}"
+    if search_text:
+        g1_prompt += f"\n\n## 联网核查材料（可引用 URL 佐证价格与护理信息）\n{search_text}"
+    g1_res = await clothing_guide_agent.run(g1_prompt)
+    g1 = g1_res.output
+
+    # --- 2. 选购搭配 ---
+    g2_prompt = (
+        f"{ctx}\n\n## 面料分析结论\n{g1.model_dump_json(indent=2)}\n\n"
+        f"{user_text}\n\n{detail_inst}\n\n{lang_inst}"
+    )
+    if search_text:
+        g2_prompt += f"\n\n## 联网核查材料\n{search_text}"
+    g2_res = await shopping_guide_agent.run(g2_prompt)
+    g2 = g2_res.output
+
+    # --- 3. 替代方案 ---
+    g3_prompt = (
+        f"{ctx}\n\n## 面料分析结论\n{g1.model_dump_json(indent=2)}\n\n"
+        f"## 选购搭配结论\n{g2.model_dump_json(indent=2)}\n\n"
+        f"{user_text}\n\n{detail_inst}\n\n{lang_inst}"
+    )
+    if search_text:
+        g3_prompt += f"\n\n## 联网核查材料（替代品候选）\n{search_text}"
+    g3_res = await alternatives_agent.run(g3_prompt)
+    g3 = g3_res.output
+
+    report = ClothingReport(
+        fabric=FabricInfo(material=material, confidence=confidence, evidence=evidence,
+                          label_text=label_text, method=fabric.get("method", ""), hint=hint),
+        guide=g1,
+        shopping=g2,
+        alternatives=g3,
+    )
+    return PipelineResult(
+        status="ok",
+        message="分析完成。" if req.language == "zh" else "Analysis complete.",
+        mode="clothing",
+        product_summary=ctx,
+        clothing=report,
     )
