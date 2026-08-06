@@ -2,7 +2,9 @@
 Proven: 淘宝/天猫 bare fetch -> 4.7KB anti-bot shell; JD -> empty shell; Apple/Amazon -> OK.
 Strategy: fetch -> shell/anti-bot detect -> playwright render -> extract text.
 """
+import ipaddress
 import re
+import socket
 import urllib.request
 from urllib.parse import urlparse
 
@@ -20,13 +22,60 @@ def _strip_html(raw: str, limit: int = 6000) -> str:
     return text[:limit]
 
 
+def _is_ssrf_blocked_ip(ip_str: str) -> bool:
+    """SSRF 防护（CWE-918 fix）：拒绝私有/回环/链路本地/组播/保留地址。"""
+    try:
+        ip = ipaddress.ip_address(ip_str.split("%")[0])
+    except ValueError:
+        return True
+    if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast
+            or ip.is_unspecified or ip.is_reserved):
+        return True
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        v4 = ip.ipv4_mapped
+        if (v4.is_private or v4.is_loopback or v4.is_link_local
+                or v4.is_multicast or v4.is_unspecified):
+            return True
+    return False
+
+
+def validate_fetch_url(url: str) -> None:
+    """任何网络操作前校验目标 URL：仅 http/https，拒绝解析到内网/回环地址。"""
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise ValueError(f"仅支持 http/https 链接: {parsed.scheme}")
+    if not parsed.hostname:
+        raise ValueError("链接缺少主机名")
+    port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    try:
+        infos = socket.getaddrinfo(parsed.hostname, port, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as e:
+        raise ValueError(f"无法解析主机: {parsed.hostname}") from e
+    for info in infos:
+        if _is_ssrf_blocked_ip(info[4][0]):
+            raise ValueError("已拦截：目标解析到私有/回环/链路本地地址")
+
+
+class _ValidatingRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """重定向每一跳都重新校验目标地址，禁止跳到内网。"""
+    max_redirections = 5
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        newreq = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if newreq is not None:
+            validate_fetch_url(newreq.full_url)
+        return newreq
+
+
 def _fetch_bare(url: str, ua: str, timeout: int = 15):
+    validate_fetch_url(url)
     req = urllib.request.Request(url, headers={
         "User-Agent": ua,
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     })
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    opener = urllib.request.build_opener(_ValidatingRedirectHandler())
+    with opener.open(req, timeout=timeout) as r:
         raw = r.read(400000).decode("utf-8", errors="ignore")
     return raw
 
@@ -64,6 +113,8 @@ def fetch_page(url: str) -> dict:
     domain = urlparse(url).netloc.lower()
     try:
         raw = _fetch_bare(url, _UA_MOBILE if any(d in domain for d in ("m.jd.com", "m.tb", "h5.")) else _UA_DESKTOP)
+    except ValueError as e:
+        return {"ok": False, "blocked": True, "hint": str(e), "title": "", "text": "", "price": "", "method": "blocked"}
     except Exception as e:
         return {"ok": False, "blocked": True, "hint": f"直连失败({type(e).__name__})", "title": "", "text": "", "price": "", "method": "bare"}
     if not _looks_shell(raw):

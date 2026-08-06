@@ -8,6 +8,7 @@ import base64
 import os
 import re
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -48,20 +49,67 @@ def _need_input(msg: str) -> PipelineResult:
 _TASKS: dict[str, dict] = {}
 
 
+# ---- 资源保护（CWE-400 fix, 2026-08-06）：限速 / 容量 / TTL ----
+_RATE_WINDOW = 60
+_RATE_LIMIT = 20
+_RATE: dict[str, list[float]] = {}
+_MAX_TASKS = 200
+_TASKS_TTL_SECONDS = 3600
+_MAX_CONCURRENT_TASKS = 8
+_task_sem = asyncio.Semaphore(_MAX_CONCURRENT_TASKS)
+
+
+def _client_ip(request: Request) -> str:
+    # 不信任 X-Forwarded-For（可伪造）；单机直连场景用 socket 地址即可
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_allowed(ip: str) -> bool:
+    """IP 滑动窗口限速：窗口内达到 _RATE_LIMIT 次则拒绝（被拒请求不计数）。"""
+    now = time.monotonic()
+    ts = [t for t in _RATE.get(ip, []) if now - t < _RATE_WINDOW]
+    if len(ts) >= _RATE_LIMIT:
+        _RATE[ip] = ts
+        return False
+    ts.append(now)
+    _RATE[ip] = ts
+    return True
+
+
+def _task_store(task_id: str, status: str, result=None, error=None) -> None:
+    entry = {"status": status, "created_at": _TASKS.get(task_id, {}).get("created_at", time.time())}
+    if result is not None:
+        entry["result"] = result
+    if error is not None:
+        entry["error"] = error
+    _TASKS[task_id] = entry
+
+
+def _evict_expired() -> None:
+    """驱逐过期条目；超过容量上限时丢最旧。"""
+    now = time.time()
+    expired = [k for k, t in _TASKS.items() if now - t.get("created_at", 0) > _TASKS_TTL_SECONDS]
+    for k in expired:
+        _TASKS.pop(k, None)
+    if len(_TASKS) > _MAX_TASKS:
+        for k in sorted(_TASKS, key=lambda k: _TASKS[k].get("created_at", 0))[: len(_TASKS) - _MAX_TASKS]:
+            _TASKS.pop(k, None)
+
+
 async def _task_run(task_id: str, fn, *args, lang: str = "zh"):
-    """后台执行 fn，更新任务状态。"""
-    _TASKS[task_id] = {"status": "running"}
-    try:
-        result = await asyncio.wait_for(fn(*args), timeout=360)
-        _TASKS[task_id] = {"status": "done", "result": result}
-    except asyncio.TimeoutError:
-        _TASKS[task_id] = {
-            "status": "error",
-            "error": "分析超时，请稍后重试" if lang == "zh" else "Analysis timed out, please try again later",
-        }
-    except Exception as e:
-        _TASKS[task_id] = {"status": "error", "error": f"{type(e).__name__}: {str(e)[:200]}"}
-        print(f"[task {task_id}] FAIL: {_TASKS[task_id]['error']}", flush=True)
+    """后台执行 fn（受并发信号量限制），更新任务状态，结束清理过期条目。"""
+    async with _task_sem:
+        _task_store(task_id, "running")
+        try:
+            result = await asyncio.wait_for(fn(*args), timeout=360)
+            _task_store(task_id, "done", result=result)
+        except asyncio.TimeoutError:
+            _task_store(task_id, "error",
+                        error="分析超时，请稍后重试" if lang == "zh" else "Analysis timed out, please try again later")
+        except Exception as e:
+            _task_store(task_id, "error", error=f"{type(e).__name__}: {str(e)[:200]}")
+            print(f"[task {task_id}] FAIL: {_TASKS[task_id]['error']}", flush=True)
+    _evict_expired()
 
 
 async def _task_full(req: AnalysisRequest) -> PipelineResult:
@@ -126,10 +174,15 @@ async def index():
 
 
 @app.post("/analyze")
-async def analyze(req: AnalysisRequest):
-    """异步全流程分析：立即返回 task_id，前端轮询 /task/{id}。"""
+async def analyze(req: AnalysisRequest, request: Request):
+    """异步全流程分析：限流+容量检查后返回 task_id，前端轮询 /task/{id}。"""
+    if not _rate_allowed(_client_ip(request)):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    _evict_expired()
+    if len(_TASKS) >= _MAX_TASKS:
+        raise HTTPException(503, "系统繁忙，请稍后再试")
     task_id = uuid.uuid4().hex
-    _TASKS[task_id] = {"status": "pending"}
+    _task_store(task_id, "pending")
     asyncio.create_task(_task_run(task_id, _task_full, req, lang=req.language))
     return {"task_id": task_id}
 
@@ -144,8 +197,13 @@ class ImageUpload(BaseModel):
 
 
 @app.post("/analyze_image")
-async def analyze_image(upload: ImageUpload):
-    """异步截图分析（base64 JSON 版）：立即返回 task_id。"""
+async def analyze_image(upload: ImageUpload, request: Request):
+    """异步截图分析（base64 JSON 版）：限流+容量检查后返回 task_id。"""
+    if not _rate_allowed(_client_ip(request)):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    _evict_expired()
+    if len(_TASKS) >= _MAX_TASKS:
+        raise HTTPException(503, "系统繁忙，请稍后再试")
     try:
         data = base64.b64decode(upload.image_b64)
     except Exception:
@@ -156,7 +214,7 @@ async def analyze_image(upload: ImageUpload):
     tmp.write(data)
     tmp.close()
     task_id = uuid.uuid4().hex
-    _TASKS[task_id] = {"status": "pending"}
+    _task_store(task_id, "pending")
     if upload.mode == "clothing":
         asyncio.create_task(_task_image_cleanup(
             task_id, tmp.name, upload.detail, upload.language,
@@ -182,6 +240,7 @@ async def _task_image_cleanup(task_id: str, img_path: str, detail: str = "concis
 
 @app.get("/task/{task_id}")
 async def get_task(task_id: str):
+    _evict_expired()
     t = _TASKS.get(task_id)
     if not t:
         raise HTTPException(404, "任务不存在或已过期")
